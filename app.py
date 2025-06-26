@@ -1,0 +1,173 @@
+import logging
+import os
+import uuid
+
+import streamlit as st
+from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+from langchain_together import ChatTogether
+
+
+def load_template(type):
+    """
+    Загружает текст запроса для LLM.
+    """
+    if type == "changes":
+        with open("prompt_changes.txt", "r", encoding="utf-8") as file:
+            template = file.read()
+    else:
+        with open("prompt_new_federal_law.txt", "r", encoding="utf-8") as file:
+            template = file.read()
+
+    return template
+
+
+def create_files_upload_section():
+    """
+    Создает секцию загрузки файлов.
+    """
+    changes = st.file_uploader(
+        "📄 Загрузите изменения закона (старая и новая версии)", ["pdf", "docx"]
+    )
+    new_federal_law = st.file_uploader(
+        "📝 Загрузите обновленный закон РФ", ["pdf", "docx"]
+    )
+    region_law = st.file_uploader(
+        "📝 Загрузите закон Курганской области", ["pdf", "docx"]
+    )
+    return changes, new_federal_law, region_law
+
+
+def save_file(file, name=None):
+    """
+    Сохраняет загруженный файл с уникальным идентификатором.
+    """
+    unique_id = str(uuid.uuid4())
+    file_name = f"{unique_id}_{name if name else file.name}"
+    with open(file_name, "wb") as f:
+        f.write(file.getbuffer())
+    return file_name
+
+
+def save_uploaded_files(files_to_save):
+    """
+    Сохраняет загруженные файлы.
+    """
+    saved_files = {}
+    for key, file in files_to_save.items():
+        if file:
+            saved_files[key] = save_file(file)
+    return saved_files
+
+
+def delete_files(files):
+    """
+    Удаляет загруженные файлы.
+    """
+    try:
+        for file in files:
+            if file:
+                os.remove(file)
+    except Exception as e:
+        logging.error(f"Ошибка при удалении файлов: {str(e)}")
+
+
+def extract_text_from_file(uploaded_file: str) -> str:
+    """
+    Извлекает текстовое содержимое из файлов PDF, DOCX.
+    """
+    try:
+        if uploaded_file.endswith(".docx"):
+            return Docx2txtLoader(uploaded_file).load()[0].page_content
+        else:
+            return PyPDFLoader(uploaded_file, mode="single").load()[0].page_content
+    except Exception as e:
+        logging.error(f"Ошибка при чтении файла {uploaded_file}: {str(e)}")
+        st.error(f"Ошибка при чтении файла {uploaded_file}")
+
+
+def main():
+    logging.basicConfig(level=logging.INFO)
+
+    st.title("Ассистент для анализа изменений в законах")
+
+    changes, new_federal_law, region_law = create_files_upload_section()
+
+    start_check = st.button("🔍 Выполнить анализ изменений")
+
+    if start_check:
+        if (changes or new_federal_law) and region_law:
+            # Сохранение загруженных файлов
+            files_to_save = {
+                "changes": changes,
+                "new_federal_law": new_federal_law,
+                "region_law": region_law,
+            }
+            saved_files = save_uploaded_files(files_to_save)
+
+            # Извлечение текста из файлов
+            changes_text = (
+                extract_text_from_file(saved_files.get("changes", ""))
+                if changes
+                else ""
+            )
+            new_federal_law_text = (
+                extract_text_from_file(saved_files.get("new_federal_law", ""))
+                if new_federal_law
+                else ""
+            )
+            region_law_text = (
+                extract_text_from_file(saved_files.get("region_law", ""))
+                if region_law
+                else ""
+            )
+
+            # Загрузка текста запроса для LLM
+            if changes_text:
+                prompt = PromptTemplate.from_template(load_template("changes"))
+                input_dict = {"changes": changes_text, "region_law": region_law_text}
+            else:
+                prompt = PromptTemplate.from_template(load_template("new_federal_law"))
+                input_dict = {
+                    "new_federal_law": new_federal_law_text,
+                    "region_law": region_law_text,
+                }
+
+            os.environ["TOGETHER_API_KEY"] = st.secrets["TOGETHER_API_KEY"]
+
+            llm = ChatTogether(
+                model_name="deepseek-ai/DeepSeek-V3",
+                temperature=0,
+            )
+
+            chain = prompt | llm | StrOutputParser()
+
+            try:
+                with st.spinner("Выполняется анализ изменений..."):
+                    results = chain.invoke(input_dict)
+                st.header("Результаты анализа", divider=True)
+                st.markdown(results)
+            except Exception as e:
+                logging.error(f"При анализе возникла ошибка: {str(e)}")
+                st.error("При анализе возникла ошибка. Пожалуйста попробуйте снова.")
+            finally:
+                delete_files(saved_files.values())
+
+        # Обработка случаев, когда необходимые файлы не загружены
+        elif region_law:
+            msg = "⚠️ Перед запуском необходимо загрузить изменения закона или новый закон РФ"
+            logging.error(msg)
+            st.error(msg)
+        elif changes or new_federal_law:
+            msg = "⚠️ Перед запуском необходимо загрузить закон Курганской области"
+            logging.error(msg)
+            st.error(msg)
+        else:
+            msg = "⚠️ Перед запуском необходимо загрузить изменения закона или новый закон РФ, а также закон Курганской области"
+            logging.error(msg)
+            st.error(msg)
+
+
+if __name__ == "__main__":
+    main()
