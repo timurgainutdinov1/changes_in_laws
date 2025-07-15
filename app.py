@@ -6,7 +6,7 @@ import streamlit as st
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_together import ChatTogether
+from langchain_community.chat_models import GigaChat
 
 
 def load_template(type):
@@ -134,10 +134,9 @@ def main():
                     "region_law": region_law_text,
                 }
 
-            os.environ["TOGETHER_API_KEY"] = st.secrets["TOGETHER_API_KEY"]
-
-            llm = ChatTogether(
-                model_name="deepseek-ai/DeepSeek-V3",
+            llm = GigaChat(
+                credentials=st.secrets["GIGACHAT_CREDENTIALS"],
+                verify_ssl_certs=st.secrets.get("GIGACHAT_VERIFY_SSL", True),
                 temperature=0,
             )
 
@@ -148,9 +147,11 @@ def main():
                     results = chain.invoke(input_dict)
                 st.header("Результаты анализа", divider=True)
                 st.markdown(results)
+
             except Exception as e:
                 logging.error(f"При анализе возникла ошибка: {str(e)}")
                 st.error("При анализе возникла ошибка. Пожалуйста попробуйте снова.")
+
             finally:
                 delete_files(saved_files.values())
 
