@@ -27,6 +27,10 @@ def create_files_upload_section():
     """
     Создает секцию загрузки файлов.
     """
+    # Добавляем поле для ввода API ключа GigaChat
+    api_key = st.text_input("🔑 API ключ GigaChat", type="password", help="Введите ваш API ключ GigaChat")
+    st.session_state.api_key = api_key
+
     changes = st.file_uploader(
         "📄 Загрузите изменения закона (старая и новая версии)", ["pdf", "docx"]
     )
@@ -80,11 +84,13 @@ def extract_text_from_file(uploaded_file: str) -> str:
     try:
         if uploaded_file.endswith(".docx"):
             return Docx2txtLoader(uploaded_file).load()[0].page_content
-        else:
+        elif uploaded_file.endswith(".pdf"):
             return PyPDFLoader(uploaded_file, mode="single").load()[0].page_content
+        return ""  # Возвращаем пустую строку для неподдерживаемых форматов
     except Exception as e:
         logging.error(f"Ошибка при чтении файла {uploaded_file}: {str(e)}")
         st.error(f"Ошибка при чтении файла {uploaded_file}")
+        return ""  # Возвращаем пустую строку в случае ошибки
 
 
 def main():
@@ -97,6 +103,11 @@ def main():
     start_check = st.button("🔍 Выполнить анализ изменений")
 
     if start_check:
+        # Проверяем наличие API ключа
+        if not st.session_state.get("api_key"):
+            st.error("⚠️ Пожалуйста, введите API ключ GigaChat")
+            return
+
         if (changes or new_federal_law) and region_law:
             # Сохранение загруженных файлов
             files_to_save = {
@@ -135,8 +146,8 @@ def main():
                 }
 
             llm = GigaChat(
-                credentials=st.secrets["GIGACHAT_CREDENTIALS"],
-                verify_ssl_certs=st.secrets.get("GIGACHAT_VERIFY_SSL", True),
+                credentials=st.session_state.api_key,
+                verify_ssl_certs=False,  # Используем значение из secrets.toml
                 temperature=0,
             )
 
