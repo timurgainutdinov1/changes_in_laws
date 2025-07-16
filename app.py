@@ -23,13 +23,57 @@ def load_template(type):
     return template
 
 
+def get_model(model_name: str) -> str:
+    """
+    Возвращает модель GigaChat в зависимости от выбранного имени модели.
+
+    Args:
+        model_name (str): Имя модели GigaChat.
+
+    Returns:
+        str: Имя модели API GigaChat.
+    """
+    models = {
+        "GigaChat-2": "GigaChat-2",
+        "GigaChat-2-Pro": "GigaChat-2-Pro",
+        "GigaChat-2-Max": "GigaChat-2-Max",
+    }
+    return models[model_name]
+
+
 def create_files_upload_section():
     """
-    Создает секцию загрузки файлов.
+    Создает секцию загрузки файлов и выбора модели/версии API.
     """
     # Добавляем поле для ввода API ключа GigaChat
     api_key = st.text_input("🔑 API ключ GigaChat", type="password", help="Введите ваш API ключ GigaChat")
     st.session_state.api_key = api_key
+
+    # Выбор модели
+    model_name = st.selectbox(
+        "Выберите модель GigaChat",
+        [
+            "GigaChat-2 ⚡",
+            "GigaChat-2-Pro ⚡⚡",
+            "GigaChat-2-Max ⚡⚡⚡",
+        ],
+        index=0,
+    )
+    # Приводим к ключу для get_model
+    model_key = model_name.split(" ")[0]
+    st.session_state.model = get_model(model_key)
+
+    # Выбор scope
+    scope = st.selectbox(
+        "Выберите версию API",
+        [
+            "GIGACHAT_API_PERS (для физических лиц)",
+            "GIGACHAT_API_CORP (для юридических лиц)",
+            "GIGACHAT_API_B2B (для бизнеса)",
+        ],
+        index=0,
+    ).split(" ")[0]
+    st.session_state.scope = scope
 
     changes = st.file_uploader(
         "📄 Загрузите изменения закона (старая и новая версии)", ["pdf", "docx"]
@@ -146,7 +190,9 @@ def main():
                 }
 
             llm = GigaChat(
+                model=st.session_state.model,
                 credentials=st.session_state.api_key,
+                scope=st.session_state.scope,
                 verify_ssl_certs=False,  # Используем значение из secrets.toml
                 temperature=0,
                 timeout=1000
