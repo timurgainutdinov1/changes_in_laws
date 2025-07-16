@@ -149,6 +149,7 @@ def main():
                 credentials=st.session_state.api_key,
                 verify_ssl_certs=False,  # Используем значение из secrets.toml
                 temperature=0,
+                timeout=1000
             )
 
             chain = prompt | llm | StrOutputParser()
