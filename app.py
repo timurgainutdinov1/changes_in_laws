@@ -46,7 +46,9 @@ def create_files_upload_section():
     Создает секцию загрузки файлов и выбора модели/версии API.
     """
     # Добавляем поле для ввода API ключа GigaChat
-    api_key = st.text_input("🔑 API ключ GigaChat", type="password", help="Введите ваш API ключ GigaChat")
+    api_key = st.text_input(
+        "🔑 API ключ GigaChat", type="password", help="Введите ваш API ключ GigaChat"
+    )
     st.session_state.api_key = api_key
 
     # Выбор модели
@@ -195,7 +197,7 @@ def main():
                 scope=st.session_state.scope,
                 verify_ssl_certs=False,  # Используем значение из secrets.toml
                 temperature=0,
-                timeout=1000
+                timeout=1000,
             )
 
             chain = prompt | llm | StrOutputParser()
