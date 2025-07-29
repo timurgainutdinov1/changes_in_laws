@@ -195,19 +195,23 @@ def main():
                 model=st.session_state.model,
                 credentials=st.session_state.api_key,
                 scope=st.session_state.scope,
-                verify_ssl_certs=False,  # Используем значение из secrets.toml
+                verify_ssl_certs=False,
                 temperature=0,
-                timeout=1000,
+                timeout=500,
+                streaming=True,
             )
 
             chain = prompt | llm | StrOutputParser()
 
+            output_spot = st.empty()
+            partial = ""
+
             try:
                 with st.spinner("Выполняется анализ изменений..."):
-                    results = chain.invoke(input_dict)
+                    for chunk in chain.stream(input_dict):
+                        partial += chunk
+                        output_spot.markdown(partial)
                 st.header("Результаты анализа", divider=True)
-                st.markdown(results)
-
             except Exception as e:
                 logging.error(f"При анализе возникла ошибка: {str(e)}")
                 st.error("При анализе возникла ошибка. Пожалуйста попробуйте снова.")
