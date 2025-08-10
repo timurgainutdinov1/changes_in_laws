@@ -6,7 +6,10 @@ import streamlit as st
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_community.chat_models import GigaChat
+from langchain_gigachat import GigaChat
+from io import BytesIO
+from docx import Document
+from docx.shared import Pt
 
 
 def load_template(type):
@@ -139,6 +142,23 @@ def extract_text_from_file(uploaded_file: str) -> str:
         return ""  # Возвращаем пустую строку в случае ошибки
 
 
+def build_docx(text: str) -> BytesIO:
+    doc = Document()
+    style = doc.styles["Normal"]
+    font = style.font
+    font.name = "Times New Roman"
+    font.size = Pt(12)
+
+    # Разбиваем текст на абзацы по переносам строк
+    for paragraph in text.strip().split("\n"):
+        doc.add_paragraph(paragraph)
+
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
 def main():
     logging.basicConfig(level=logging.INFO)
 
@@ -196,8 +216,9 @@ def main():
                 credentials=st.session_state.api_key,
                 scope=st.session_state.scope,
                 verify_ssl_certs=False,
-                temperature=0,
-                timeout=500,
+                temperature=0.1,
+                top_p=0.8,
+                timeout=1000,
                 streaming=True,
             )
 
@@ -212,6 +233,13 @@ def main():
                         partial += chunk
                         output_spot.markdown(partial)
                 st.header("Результаты анализа", divider=True)
+                docx_file = build_docx(partial)
+                st.download_button(
+                    label="💾 Скачать как DOCX",
+                    data=docx_file,
+                    file_name="project_kurgan_changes.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
             except Exception as e:
                 logging.error(f"При анализе возникла ошибка: {str(e)}")
                 st.error("При анализе возникла ошибка. Пожалуйста попробуйте снова.")
