@@ -6,7 +6,9 @@ import streamlit as st
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_gigachat import GigaChat
+
+# from langchain_gigachat import GigaChat
+from langchain_community.chat_models import GigaChat
 from io import BytesIO
 from docx import Document
 from docx.shared import Pt
