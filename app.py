@@ -3,6 +3,7 @@ import os
 import uuid
 
 import streamlit as st
+import streamlit.components.v1 as components
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
@@ -165,6 +166,22 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     st.title("Ассистент для анализа изменений в законах")
+
+    yandex_code = """
+        <!-- Yandex.Metrika counter -->
+        <script type="text/javascript">
+            (function(m,e,t,r,i,k,a){
+                m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+                m[i].l=1*new Date();
+                for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+                k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+            })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=103796690', 'ym');
+            ym(103796690, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+        </script>
+        <noscript><div><img src="https://mc.yandex.ru/watch/103796690" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+        <!-- /Yandex.Metrika counter -->
+        """
+    components.html(yandex_code, height=0)
 
     changes, new_federal_law, region_law = create_files_upload_section()
 
